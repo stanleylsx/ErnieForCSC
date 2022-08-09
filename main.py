@@ -3,7 +3,7 @@
 # @Email : gzlishouxian@gmail.com
 # @File : main.py
 # @Software: PyCharm
-from logger import get_logger
+from utils.logger import get_logger
 from config import use_cuda, cuda_device, configure, mode
 from data import DataManager
 import torch
@@ -43,3 +43,9 @@ if __name__ == '__main__':
         device = 'cpu'
     logger.info(f'device: {device}')
     data_manager = DataManager(logger=logger)
+
+    if mode == 'train':
+        logger.info(json.dumps(configure, indent=2, ensure_ascii=False))
+        from train import Train
+        logger.info('mode: train')
+        Train(data_manager, device, logger).train()

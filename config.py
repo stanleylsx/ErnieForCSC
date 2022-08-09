@@ -13,6 +13,11 @@ use_cuda = True
 cuda_device = -1
 
 configure = {
+    'checkpoints_dir': 'checkpoints',
+    'optimizer': 'AdamW',
+    'max_sequence_length': 128,
+    'learning_rate': 5e-5,
+    'epochs': 5,
     'batch_size': 16,
-    'checkpoints_dir': 'checkpoints'
+    'model_name': 'ernie4csc'
 }

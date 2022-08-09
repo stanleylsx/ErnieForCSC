@@ -7,7 +7,10 @@
 from transformers import AutoTokenizer
 from pypinyin import lazy_pinyin, Style
 from config import configure
+from tqdm import tqdm
+from utils.utils import is_chinese_char
 import torch
+import os
 import numpy as np
 
 
@@ -17,62 +20,82 @@ class DataManager:
         self.batch_size = configure['batch_size']
         self.max_sequence_length = configure['max_sequence_length']
         self.tokenizer = AutoTokenizer.from_pretrained('nghuyong/ernie-1.0')
+        self.pinyin2id, self.id2pinyin = self.load_pinyin_vocab()
+        self.pinyin_vocab_size = len(self.pinyin2id)
+        self.ignore_label = -100
 
-    def padding(self, token):
-        if len(token) < self.max_sequence_length:
-            token += [0 for _ in range(self.max_sequence_length - len(token))]
-        else:
-            token = token[:self.max_sequence_length]
-        return token
+    def load_pinyin_vocab(self):
+        if not os.path.exists('datasets/pinyin_vocab.txt'):
+            self.logger.info('pinyin vocab file not exist...')
+            raise Exception('pinyin vocab file not exist...')
 
-    def prepare_data(self, data):
-        text_list = []
-        entity_results_list = []
-        token_ids_list = []
-        segment_ids_list = []
-        attention_mask_list = []
-        label_vectors = []
-        for item in data:
-            text = item.get('text')
-            entity_results = {}
-            token_results = self.tokenizer(text)
-            token_ids = self.padding(token_results.get('input_ids'))
-            segment_ids = self.padding(token_results.get('token_type_ids'))
-            attention_mask = self.padding(token_results.get('attention_mask'))
+        with open('datasets/pinyin_vocab.txt', 'r', encoding='utf-8') as infile:
+            pinyin_token_list = [pinyin.rstrip('\n') for pinyin in infile.readlines()]
+            token2id = dict(zip(pinyin_token_list, range(0, len(pinyin_token_list))))
+            id2token = dict(zip(range(0, len(pinyin_token_list)), pinyin_token_list))
+        return token2id, id2token
 
-            if self.configs['model_type'] == 'bp':
-                label_vector = np.zeros((len(token_ids), len(self.categories), 2))
-            else:
-                label_vector = np.zeros((self.num_labels, len(token_ids), len(token_ids)))
+    @staticmethod
+    def read_data(data_path):
+        with open(data_path, 'r', encoding='utf-8') as f:
+            for line in tqdm(f):
+                source, target = line.strip('\n').split('\t')[0: 2]
+                yield {'source': source, 'target': target}
 
-            for entity in item.get('entities'):
-                start_idx = entity['start_idx']
-                end_idx = entity['end_idx']
-                type_class = entity['type']
-                token2char_span_mapping = self.tokenizer(text, return_offsets_mapping=True,
-                                                         max_length=self.max_sequence_length,
-                                                         truncation=True)['offset_mapping']
-                start_mapping = {j[0]: i for i, j in enumerate(token2char_span_mapping) if j != (0, 0)}
-                end_mapping = {j[-1] - 1: i for i, j in enumerate(token2char_span_mapping) if j != (0, 0)}
-                if start_idx in start_mapping and end_idx in end_mapping:
-                    class_id = self.categories[type_class]
-                    entity_results.setdefault(class_id, set()).add(entity['entity'])
-                    start_in_tokens = start_mapping[start_idx]
-                    end_in_tokens = end_mapping[end_idx]
-                    if self.configs['model_type'] == 'bp':
-                        label_vector[start_in_tokens, class_id, 0] = 1
-                        label_vector[end_in_tokens, class_id, 1] = 1
-                    else:
-                        label_vector[class_id, start_in_tokens, end_in_tokens] = 1
+    def prepare_data(self, data_list):
+        input_ids_list = []
+        pinyin_ids_list = []
+        detection_labels_list = []
+        correction_labels_list = []
+        length_list = []
+        for data in tqdm(data_list):
+            source = data['source']
+            words = list(source)
+            if len(words) > self.max_sequence_length - 2:
+                words = words[:self.max_sequence_length - 2]
+            length = len(words)
+            words = ['[CLS]'] + words + ['[SEP]']
+            input_ids = self.tokenizer.convert_tokens_to_ids(words)
 
-            text_list.append(text)
-            entity_results_list.append(entity_results)
-            token_ids_list.append(token_ids)
-            segment_ids_list.append(segment_ids)
-            attention_mask_list.append(attention_mask)
-            label_vectors.append(label_vector)
-        token_ids_list = torch.tensor(token_ids_list)
-        segment_ids_list = torch.tensor(segment_ids_list)
-        attention_mask_list = torch.tensor(attention_mask_list)
-        label_vectors = torch.tensor(np.array(label_vectors))
-        return text_list, entity_results_list, token_ids_list, segment_ids_list, attention_mask_list, label_vectors
+            # Use pad token in pinyin emb to map word emb [CLS], [SEP]
+            pinyins = lazy_pinyin(source, style=Style.TONE3, neutral_tone_with_five=True)
+            pinyin_ids = [0]
+            # Align pinyin and chinese char
+            # 对于长度不为1的字符或不为中文的字符 将pinyin_vocab['UNK']或pinyin['PAD']添加至pinyin_ids
+            pinyin_offset = 0
+            for i, word in enumerate(words[1:-1]):
+                pinyin = '[UNK]' if word != '[PAD]' else '[PAD]'
+                if len(word) == 1 and is_chinese_char(ord(word)):
+                    while pinyin_offset < len(pinyins):
+                        current_pinyin = pinyins[pinyin_offset][:-1]
+                        pinyin_offset += 1
+                        if current_pinyin in self.pinyin2id:
+                            pinyin = current_pinyin
+                            break
+                pinyin_ids.append(self.pinyin2id[pinyin])
+
+            pinyin_ids.append(0)
+            assert len(input_ids) == len(
+                pinyin_ids), 'length of input_ids must be equal to length of pinyin_ids'
+
+            target = data['target']
+            correction_labels = list(target)
+            if len(correction_labels) > self.max_sequence_length - 2:
+                correction_labels = correction_labels[:self.max_sequence_length - 2]
+            correction_labels = self.tokenizer.convert_tokens_to_ids(correction_labels)
+            correction_labels = [self.ignore_label] + correction_labels + [self.ignore_label]
+
+            detection_labels = []
+            for input_id, label in zip(input_ids[1:-1], correction_labels[1:-1]):
+                detection_label = 0 if input_id == label else 1
+                detection_labels += [detection_label]
+            detection_labels = [self.ignore_label] + detection_labels + [self.ignore_label]
+
+            input_ids_list.append(input_ids)
+            pinyin_ids_list.append(input_ids)
+            detection_labels_list.append(detection_labels)
+            correction_labels_list.append(correction_labels)
+            length_list.append(length)
+
+        return input_ids_list, pinyin_ids_list, detection_labels_list, correction_labels_list, length_list
+
