@@ -10,7 +10,6 @@ from config import configure
 from tqdm import tqdm
 from utils.utils import is_chinese_char
 from torch.utils.data import Dataset
-from torch.nn.utils.rnn import pad_sequence
 import torch
 import os
 
