@@ -68,7 +68,7 @@ class Train:
             dataset=MyData(train_data),
             batch_size=self.batch_size,
             collate_fn=self.data_manager.prepare_data,
-            shuffle=False
+            shuffle=True
         )
         val_loader = DataLoader(
             dataset=MyData(val_data),
@@ -182,7 +182,7 @@ class Train:
         corr_f1, corr_precision, corr_recall = corr_metric.accumulate()
         self.logger.info('Sentence-Level Performance:')
         self.logger.info('Detection  metric: F1={:.4f}, Recall={:.4f}, Precision={:.4f}'.
-                    format(det_f1, det_recall, det_precision))
+                         format(det_f1, det_recall, det_precision))
         self.logger.info('Correction metric: F1={:.4f}, Recall={:.4f}, Precision={:.4f}'.
-                    format(corr_f1, corr_recall, corr_precision))
+                         format(corr_f1, corr_recall, corr_precision))
         return det_f1, corr_f1

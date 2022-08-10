@@ -6,7 +6,7 @@
 # @Software: PyCharm
 
 # [train, interactive_predict, test, convert2tf]
-mode = 'train'
+mode = 'test'
 
 # 使用GPU设备
 use_cuda = True
@@ -18,7 +18,7 @@ configure = {
     'max_sequence_length': 192,
     'learning_rate': 5e-5,
     'epochs': 10,
-    'batch_size': 32,
+    'batch_size': 8,
     'model_name': 'ernie4csc.pkl',
     # 是否进行warmup
     'warmup': True,

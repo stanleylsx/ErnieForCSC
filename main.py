@@ -50,4 +50,20 @@ if __name__ == '__main__':
         logger.info('mode: train')
         Train(data_manager, device, logger).train()
     elif mode == 'interactive_predict':
-        pass
+        logger.info(json.dumps(configure, indent=2, ensure_ascii=False))
+        from predict import Predictor
+        predictor = Predictor(data_manager, device, logger)
+        predictor.predict_one('warm up')
+        while True:
+            logger.info('please input a sentence (enter [exit] to exit.)')
+            sentence = input()
+            if sentence == 'exit':
+                break
+            result = predictor.predict_one(sentence)
+            print(result)
+    elif mode == 'test':
+        logger.info(json.dumps(configure, indent=2, ensure_ascii=False))
+        from predict import Predictor
+        predictor = Predictor(data_manager, device, logger)
+        predictor.predict_one('warm up')
+        predictor.predict_test()
