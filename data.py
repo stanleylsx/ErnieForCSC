@@ -9,9 +9,10 @@ from pypinyin import lazy_pinyin, Style
 from config import configure
 from tqdm import tqdm
 from utils.utils import is_chinese_char
+from torch.utils.data import Dataset
+from torch.nn.utils.rnn import pad_sequence
 import torch
 import os
-import numpy as np
 
 
 class DataManager:
@@ -42,13 +43,20 @@ class DataManager:
                 source, target = line.strip('\n').split('\t')[0: 2]
                 yield {'source': source, 'target': target}
 
+    def padding(self, token):
+        if len(token) < self.max_sequence_length:
+            token += [0 for _ in range(self.max_sequence_length - len(token))]
+        else:
+            token = token[:self.max_sequence_length]
+        return token
+
     def prepare_data(self, data_list):
         input_ids_list = []
         pinyin_ids_list = []
         detection_labels_list = []
         correction_labels_list = []
         length_list = []
-        for data in tqdm(data_list):
+        for data in data_list:
             source = data['source']
             words = list(source)
             if len(words) > self.max_sequence_length - 2:
@@ -75,8 +83,7 @@ class DataManager:
                 pinyin_ids.append(self.pinyin2id[pinyin])
 
             pinyin_ids.append(0)
-            assert len(input_ids) == len(
-                pinyin_ids), 'length of input_ids must be equal to length of pinyin_ids'
+            assert len(input_ids) == len(pinyin_ids), 'length of input_ids must be equal to length of pinyin_ids'
 
             target = data['target']
             correction_labels = list(target)
@@ -91,11 +98,27 @@ class DataManager:
                 detection_labels += [detection_label]
             detection_labels = [self.ignore_label] + detection_labels + [self.ignore_label]
 
-            input_ids_list.append(input_ids)
-            pinyin_ids_list.append(input_ids)
-            detection_labels_list.append(detection_labels)
-            correction_labels_list.append(correction_labels)
+            input_ids_list.append(self.padding(input_ids))
+            pinyin_ids_list.append(self.padding(pinyin_ids))
+            detection_labels_list.append(self.padding(detection_labels))
+            correction_labels_list.append(self.padding(correction_labels))
             length_list.append(length)
 
+        input_ids_list = torch.tensor(input_ids_list)
+        pinyin_ids_list = torch.tensor(pinyin_ids_list)
+        detection_labels_list = torch.tensor(detection_labels_list)
+        correction_labels_list = torch.tensor(correction_labels_list)
+        length_list = torch.tensor(length_list)
         return input_ids_list, pinyin_ids_list, detection_labels_list, correction_labels_list, length_list
 
+
+class MyData(Dataset):
+    def __init__(self, data):
+        super(MyData, self).__init__()
+        self.data = data
+
+    def __getitem__(self, item):
+        return self.data[item]
+
+    def __len__(self):
+        return len(self.data)
