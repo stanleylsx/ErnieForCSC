@@ -60,9 +60,8 @@ class Train:
 
     def train(self):
         self.logger.info('loading data...')
-        # train_data = list(self.data_manager.read_data('datasets/Data/AutomaticCorpusGeneration.txt'))
-        # train_data.extend(list(self.data_manager.read_data('datasets/Data/sighanCntrain.txt')))
-        train_data = list(self.data_manager.read_data('datasets/Data/sighanCntest.txt'))
+        train_data = list(self.data_manager.read_data('datasets/Data/AutomaticCorpusGeneration.txt'))
+        train_data.extend(list(self.data_manager.read_data('datasets/Data/sighanCntrain.txt')))
         val_data = list(self.data_manager.read_data('datasets/Data/sighanCntest.txt'))
 
         train_loader = DataLoader(
