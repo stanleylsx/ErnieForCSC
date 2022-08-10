@@ -49,3 +49,5 @@ if __name__ == '__main__':
         from train import Train
         logger.info('mode: train')
         Train(data_manager, device, logger).train()
+    elif mode == 'interactive_predict':
+        pass
