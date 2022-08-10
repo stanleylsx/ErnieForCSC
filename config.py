@@ -15,9 +15,9 @@ cuda_device = -1
 configure = {
     'checkpoints_dir': 'checkpoints',
     'optimizer': 'AdamW',
-    'max_sequence_length': 128,
+    'max_sequence_length': 192,
     'learning_rate': 5e-5,
-    'epochs': 5,
+    'epochs': 10,
     'batch_size': 32,
     'model_name': 'ernie4csc.pkl',
     # 是否进行warmup
