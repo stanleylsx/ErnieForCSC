@@ -144,8 +144,6 @@ class Train:
                 unprocessed = 0
                 best_f1 = f1
                 best_epoch = i + 1
-                optimizer_checkpoint = {'optimizer': self.optimizer.state_dict()}
-                torch.save(optimizer_checkpoint, os.path.join(self.checkpoints_dir, self.model_name + '.optimizer'))
                 torch.save(self.model.state_dict(), os.path.join(self.checkpoints_dir, self.model_name))
                 self.logger.info('saved model successful...')
             else:
