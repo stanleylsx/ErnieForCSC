@@ -57,6 +57,12 @@ class Train:
 
         self.det_loss_act = torch.nn.NLLLoss(ignore_index=self.data_manager.ignore_label)
         self.corr_loss_act = torch.nn.CrossEntropyLoss(ignore_index=self.data_manager.ignore_label, reduction='none')
+        
+        if os.path.exists(os.path.join(self.checkpoints_dir, self.model_name)):
+            logger.info('Resuming from checkpoint...')
+            self.model.load_state_dict(torch.load(os.path.join(self.checkpoints_dir, self.model_name)))
+        else:
+            logger.info('Initializing from scratch.')
 
     def train(self):
         self.logger.info('loading data...')
