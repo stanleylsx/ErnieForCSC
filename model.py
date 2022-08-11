@@ -9,11 +9,10 @@ from transformers import AutoModel
 
 
 class ErnieForCSC(torch.nn.Module):
-    def __init__(self, pinyin_vocab_size):
+    def __init__(self, pinyin_vocab_size, vocab_size):
         super(ErnieForCSC, self).__init__()
         self.model = AutoModel.from_pretrained('nghuyong/ernie-1.0')
         embedding_dim = self.model.config.hidden_size
-        vocab_size = self.model.config.vocab_size
         hidden_size = self.model.config.hidden_size
         self.pinyin_embeddings = torch.nn.Embedding(pinyin_vocab_size, embedding_dim, padding_idx=0)
         self.detection_layer = torch.nn.Linear(hidden_size, 2)
