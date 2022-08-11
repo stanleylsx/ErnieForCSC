@@ -35,6 +35,7 @@ class Predictor:
         预测接口
         """
         start_time = time.time()
+        det_pred = []
         words = list(sentence)
         if len(words) > self.data_manager.max_sequence_length - 2:
             words = words[:self.data_manager.max_sequence_length - 2]
@@ -63,11 +64,16 @@ class Predictor:
         input_ids = torch.tensor([input_ids]).to(self.device)
         pinyin_ids = torch.tensor([pinyin_ids]).to(self.device)
         det_error_probs, corr_logits, det_logits = self.model(input_ids, pinyin_ids)
-        predictions = list(torch.argmax(corr_logits.to('cpu'), dim=-1).numpy()[0])
-        corr_sentence = self.data_manager.tokenizer.convert_ids_to_tokens(predictions)
-        corr_sentence = ''.join(corr_sentence[1:-1])
+
+        corr_predictions = list(torch.argmax(corr_logits.to('cpu'), dim=-1).numpy()[0])
+        corr_sentence = self.data_manager.tokenizer.convert_ids_to_tokens(corr_predictions)
+        det_predictions = list(det_error_probs.argmax(dim=-1).to('cpu').numpy()[0])[1:-1]
+        result = zip(words[1:-1], det_predictions, corr_sentence[1:-1])
+        for item in result:
+            if item[1] == 1:
+                det_pred.append((item[0], item[2]))
         self.logger.info('predict time consumption: %.3f(ms)' % ((time.time() - start_time) * 1000))
-        return corr_sentence
+        return ''.join(corr_sentence[1:-1]), det_pred
 
     def predict_test(self):
         self.logger.info('start test...')
