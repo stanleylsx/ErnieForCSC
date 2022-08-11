@@ -6,7 +6,7 @@
 # @Software: PyCharm
 
 # [train, interactive_predict, test, convert2tf]
-mode = 'test'
+mode = 'train'
 
 # 使用GPU设备
 use_cuda = True
@@ -27,6 +27,6 @@ configure = {
     # warmup步数，-1自动推断为总步数的0.1
     'num_warmup_steps': -1,
     'print_per_batch': 100,
-    'is_early_stop': True,
+    'is_early_stop': False,
     'patient': 3,
 }
