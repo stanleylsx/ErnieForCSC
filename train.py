@@ -24,12 +24,12 @@ class Train:
         self.checkpoints_dir = configure['checkpoints_dir']
         self.model_name = configure['model_name']
         self.epochs = configure['epochs']
+        self.vocab_size = data_manager.vocab_size
 
         learning_rate = configure['learning_rate']
         pinyin_vocab_size = data_manager.pinyin_vocab_size
 
-        self.model = ErnieForCSC(pinyin_vocab_size).to(device)
-
+        self.model = ErnieForCSC(pinyin_vocab_size, self.vocab_size).to(device)
         param_optimizer = list(self.model.named_parameters())
         no_decay = ['bias', 'LayerNorm.bias', 'LayerNorm.weight']
         optimizer_grouped_parameters = [
@@ -115,7 +115,7 @@ class Train:
             self.logger.info('\nepoch:{}/{}'.format(i + 1, self.epochs))
             self.model.train()
             start_time = time.time()
-            step, loss, loss_sum = 0, 0.0, 0.0
+            step, loss = 0, 0.0
             for batch in tqdm(train_loader):
                 input_ids, pinyin_ids, det_labels, corr_labels, _ = batch
                 input_ids = input_ids.to(self.device)
@@ -124,8 +124,8 @@ class Train:
                 corr_labels = corr_labels.to(self.device)
                 self.optimizer.zero_grad()
                 det_error_probs, corr_logits, det_logits = self.model(input_ids, pinyin_ids)
-                det_loss = self.det_loss_act(torch.log(det_error_probs).view(-1, det_error_probs.shape[-1]), det_labels.view(-1))
-                corr_loss = self.corr_loss_act(corr_logits.view(-1, corr_logits.shape[-1]), corr_labels.view(-1)) * det_error_probs.max(dim=-1)[0].view(-1)
+                det_loss = self.det_loss_act(torch.log(det_error_probs).view(-1, 2), det_labels.view(-1))
+                corr_loss = self.corr_loss_act(corr_logits.view(-1, self.vocab_size), corr_labels.view(-1)) * det_error_probs.max(dim=-1)[0].view(-1)
                 loss = (det_loss + corr_loss).mean()
                 loss.backward()
                 self.optimizer.step()
