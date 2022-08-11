@@ -25,7 +25,8 @@ class Predictor:
         self.checkpoints_dir = configure['checkpoints_dir']
         self.model_name = configure['model_name']
         pinyin_vocab_size = data_manager.pinyin_vocab_size
-        self.model = ErnieForCSC(pinyin_vocab_size).to(device)
+        vocab_size = data_manager.vocab_size
+        self.model = ErnieForCSC(pinyin_vocab_size, vocab_size).to(device)
         self.model.load_state_dict(torch.load(os.path.join(self.checkpoints_dir, self.model_name)))
         self.model.eval()
 
@@ -70,7 +71,7 @@ class Predictor:
 
     def predict_test(self):
         self.logger.info('start test...')
-        val_data = list(self.data_manager.read_data('datasets/Data/sighanCntest.txt'))
+        val_data = list(self.data_manager.read_data(configure['test_file']))
         test_loader = DataLoader(
             dataset=MyData(val_data),
             batch_size=self.data_manager.batch_size,
