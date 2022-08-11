@@ -13,6 +13,7 @@ use_cuda = True
 cuda_device = -1
 
 configure = {
+    'test_file': 'datasets/Data/sighanCntest.txt',
     'checkpoints_dir': 'checkpoints',
     'optimizer': 'AdamW',
     'max_sequence_length': 128,
