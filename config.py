@@ -15,6 +15,7 @@ cuda_device = -1
 configure = {
     'test_file': 'datasets/Data/sighanCntest.txt',
     'checkpoints_dir': 'checkpoints',
+    'pretrained_model': 'nghuyong/ernie-1.0',
     'optimizer': 'AdamW',
     'max_sequence_length': 128,
     'learning_rate': 5e-5,
