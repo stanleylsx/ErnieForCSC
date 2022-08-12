@@ -25,7 +25,7 @@ class Predictor:
         self.checkpoints_dir = configure['checkpoints_dir']
         self.model_name = configure['model_name']
         pinyin_vocab_size = data_manager.pinyin_vocab_size
-        vocab_size = data_manager.vocab_size
+        vocab_size = data_manager.vocab_size + 1
         self.model = ErnieForCSC(pinyin_vocab_size, vocab_size).to(device)
         self.model.load_state_dict(torch.load(os.path.join(self.checkpoints_dir, self.model_name)))
         self.model.eval()
