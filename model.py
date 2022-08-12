@@ -6,12 +6,13 @@
 # @Software: PyCharm
 import torch
 from transformers import AutoModel
+from config import configure
 
 
 class ErnieForCSC(torch.nn.Module):
     def __init__(self, pinyin_vocab_size, vocab_size):
         super(ErnieForCSC, self).__init__()
-        self.model = AutoModel.from_pretrained('nghuyong/ernie-1.0')
+        self.model = AutoModel.from_pretrained(configure['pretrained_model'])
         embedding_dim = self.model.config.hidden_size
         hidden_size = self.model.config.hidden_size
         self.pinyin_embeddings = torch.nn.Embedding(pinyin_vocab_size, embedding_dim, padding_idx=0)
