@@ -9,6 +9,7 @@ from data import DataManager
 import torch
 import os
 import json
+os.environ['CUDA_LAUNCH_BLOCKING'] = '1'
 
 
 def fold_check(configures):
