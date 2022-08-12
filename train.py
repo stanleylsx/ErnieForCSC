@@ -24,7 +24,7 @@ class Train:
         self.checkpoints_dir = configure['checkpoints_dir']
         self.model_name = configure['model_name']
         self.epochs = configure['epochs']
-        self.vocab_size = data_manager.vocab_size
+        self.vocab_size = data_manager.vocab_size + 1
 
         learning_rate = configure['learning_rate']
         pinyin_vocab_size = data_manager.pinyin_vocab_size
