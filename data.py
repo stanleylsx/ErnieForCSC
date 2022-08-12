@@ -19,7 +19,7 @@ class DataManager:
         self.logger = logger
         self.batch_size = configure['batch_size']
         self.max_sequence_length = configure['max_sequence_length']
-        self.tokenizer = AutoTokenizer.from_pretrained('nghuyong/ernie-1.0')
+        self.tokenizer = AutoTokenizer.from_pretrained(configure['pretrained_model'])
         self.vocab_size = len(self.tokenizer)
         self.pinyin2id, self.id2pinyin = self.load_pinyin_vocab()
         self.pinyin_vocab_size = len(self.pinyin2id)
