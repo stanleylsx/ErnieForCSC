@@ -104,3 +104,23 @@ class Predictor:
         self.logger.info('Correction metric: F1={:.4f}, Recall={:.4f}, Precision={:.4f}'.
                          format(corr_f1, corr_recall, corr_precision))
         return det_f1, corr_f1
+
+    def convert_torch_to_tf(self):
+        import onnx
+        from onnx_tf.backend import prepare
+        max_sequence_length = self.data_manager.max_sequence_length
+        dummy_input = torch.ones([1, max_sequence_length]).to('cpu').long()
+        dummy_input = (dummy_input, dummy_input)
+        onnx_path = self.checkpoints_dir + '/model.onnx'
+        torch.onnx.export(self.model.to('cpu'), dummy_input, f=onnx_path, opset_version=10,
+                          input_names=['token_input', 'pinyin_input'],
+                          output_names=['detection_error_probs', 'correction_logits', 'detection_logits'],
+                          do_constant_folding=False,
+                          dynamic_axes={'token_input': {0: 'batch_size'}, 'pinyin_input': {0: 'batch_size'},
+                                        'detection_error_probs': {0: 'batch_size'},
+                                        'correction_logits': {0: 'batch_size'}, 'detection_logits': {0: 'batch_size'}})
+        model_onnx = onnx.load(onnx_path)
+        tf_rep = prepare(model_onnx)
+        pb_path = self.checkpoints_dir + '/model.pb'
+        tf_rep.export_graph(pb_path)
+        self.logger.info('convert torch to tensorflow pb successful...')
