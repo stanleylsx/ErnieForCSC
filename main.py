@@ -52,6 +52,7 @@ if __name__ == '__main__':
     elif mode == 'interactive_predict':
         logger.info(json.dumps(configure, indent=2, ensure_ascii=False))
         from predict import Predictor
+        logger.info('mode: interactive_predict')
         predictor = Predictor(data_manager, device, logger)
         predictor.predict_one('warm up')
         while True:
@@ -64,6 +65,14 @@ if __name__ == '__main__':
     elif mode == 'test':
         logger.info(json.dumps(configure, indent=2, ensure_ascii=False))
         from predict import Predictor
+        logger.info('mode: test')
         predictor = Predictor(data_manager, device, logger)
         predictor.predict_one('warm up')
         predictor.predict_test()
+    elif mode == 'convert2tf':
+        logger.info(json.dumps(configure, indent=2, ensure_ascii=False))
+        logger.info('mode: convert2tf')
+        from predict import Predictor
+        predictor = Predictor(data_manager, device, logger)
+        predictor.convert_torch_to_tf()
+
