@@ -74,7 +74,7 @@ mode = 'interactive_predict'
 ![预测结果](https://img-blog.csdnimg.cn/c05f711c00ed472ba178c7f4b385502b.png)
 
 ## 相关参考  
-**GitHub：[ERNIE for Chinese Spelling Correction](https://github.com/PaddlePaddle/PaddleNLP/tree/develop/examples/text_correction/ernie-csc)**
+**GitHub：[ERNIE for Chinese Spelling Correction](https://github.com/PaddlePaddle/PaddleNLP/tree/develop/examples/text_correction/ernie-csc)**  
 **GitHub：[orangetwo/ernie-csc](https://github.com/orangetwo/ernie-csc)**
 
 ## 公众号  
