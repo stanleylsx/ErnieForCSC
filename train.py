@@ -25,46 +25,14 @@ class Train:
         self.model_name = configure['model_name']
         self.epochs = configure['epochs']
         self.vocab_size = data_manager.vocab_size + 1
+        self.learning_rate = configure['learning_rate']
 
-        learning_rate = configure['learning_rate']
-        pinyin_vocab_size = data_manager.pinyin_vocab_size
-
-        self.model = ErnieForCSC(pinyin_vocab_size, self.vocab_size).to(device)
-        param_optimizer = list(self.model.named_parameters())
-        no_decay = ['bias', 'LayerNorm.bias', 'LayerNorm.weight']
-        optimizer_grouped_parameters = [
-            {'params': [p for n, p in param_optimizer if not any(
-                nd in n for nd in no_decay)], 'weight_decay': 0.01},
-            {'params': [p for n, p in param_optimizer if any(
-                nd in n for nd in no_decay)], 'weight_decay': 0.0}
-        ]
-
-        optimizer_type = configure['optimizer']
-        if optimizer_type == 'Adagrad':
-            self.optimizer = torch.optim.Adagrad(optimizer_grouped_parameters, lr=learning_rate)
-        elif optimizer_type == 'Adadelta':
-            self.optimizer = torch.optim.Adadelta(optimizer_grouped_parameters, lr=learning_rate)
-        elif optimizer_type == 'RMSprop':
-            self.optimizer = torch.optim.RMSprop(optimizer_grouped_parameters, lr=learning_rate)
-        elif optimizer_type == 'SGD':
-            self.optimizer = torch.optim.SGD(optimizer_grouped_parameters, lr=learning_rate)
-        elif optimizer_type == 'Adam':
-            self.optimizer = torch.optim.Adam(optimizer_grouped_parameters, lr=learning_rate)
-        elif optimizer_type == 'AdamW':
-            self.optimizer = torch.optim.AdamW(optimizer_grouped_parameters, lr=learning_rate, eps=1e-8)
-        else:
-            raise Exception('optimizer_type does not exist')
+        self.optimizer = None
 
         self.det_loss_act = torch.nn.NLLLoss(ignore_index=self.data_manager.ignore_label)
         self.corr_loss_act = torch.nn.CrossEntropyLoss(ignore_index=self.data_manager.ignore_label, reduction='none')
-        
-        if os.path.exists(os.path.join(self.checkpoints_dir, self.model_name)):
-            logger.info('Resuming from checkpoint...')
-            self.model.load_state_dict(torch.load(os.path.join(self.checkpoints_dir, self.model_name)))
-        else:
-            logger.info('Initializing from scratch.')
 
-    def train(self):
+    def split_data(self):
         self.logger.info('loading data...')
         train_data = list(self.data_manager.read_data('datasets/Data/AutomaticCorpusGeneration.txt'))
         train_data.extend(list(self.data_manager.read_data('datasets/Data/sighanCntrain.txt')))
@@ -82,6 +50,46 @@ class Train:
             collate_fn=self.data_manager.prepare_data,
             shuffle=False
         )
+        return train_loader, val_loader
+
+    def init_model(self):
+        pinyin_vocab_size = self.data_manager.pinyin_vocab_size
+        model = ErnieForCSC(pinyin_vocab_size, self.vocab_size).to(self.device)
+        param_optimizer = list(model.named_parameters())
+        no_decay = ['bias', 'LayerNorm.bias', 'LayerNorm.weight']
+        optimizer_grouped_parameters = [
+            {'params': [p for n, p in param_optimizer if not any(
+                nd in n for nd in no_decay)], 'weight_decay': 0.01},
+            {'params': [p for n, p in param_optimizer if any(
+                nd in n for nd in no_decay)], 'weight_decay': 0.0}
+        ]
+        optimizer_type = configure['optimizer']
+        if optimizer_type == 'Adagrad':
+            self.optimizer = torch.optim.Adagrad(optimizer_grouped_parameters, lr=self.learning_rate)
+        elif optimizer_type == 'Adadelta':
+            self.optimizer = torch.optim.Adadelta(optimizer_grouped_parameters, lr=self.learning_rate)
+        elif optimizer_type == 'RMSprop':
+            self.optimizer = torch.optim.RMSprop(optimizer_grouped_parameters, lr=self.learning_rate)
+        elif optimizer_type == 'SGD':
+            self.optimizer = torch.optim.SGD(optimizer_grouped_parameters, lr=self.learning_rate)
+        elif optimizer_type == 'Adam':
+            self.optimizer = torch.optim.Adam(optimizer_grouped_parameters, lr=self.learning_rate)
+        elif optimizer_type == 'AdamW':
+            self.optimizer = torch.optim.AdamW(optimizer_grouped_parameters, lr=self.learning_rate, eps=1e-8)
+        else:
+            raise Exception('optimizer_type does not exist')
+        return model
+
+    def train(self):
+        model = self.init_model()
+
+        if os.path.exists(os.path.join(self.checkpoints_dir, self.model_name)):
+            self.logger.info('Resuming from checkpoint...')
+            model.load_state_dict(torch.load(os.path.join(self.checkpoints_dir, self.model_name)))
+        else:
+            self.logger.info('Initializing from scratch.')
+
+        train_loader, val_loader = self.split_data()
 
         best_f1 = 0
         best_epoch = 0
@@ -113,7 +121,7 @@ class Train:
         very_start_time = time.time()
         for i in range(self.epochs):
             self.logger.info('\nepoch:{}/{}'.format(i + 1, self.epochs))
-            self.model.train()
+            model.train()
             start_time = time.time()
             step, loss = 0, 0.0
             for batch in tqdm(train_loader):
@@ -123,9 +131,10 @@ class Train:
                 det_labels = det_labels.to(self.device)
                 corr_labels = corr_labels.to(self.device)
                 self.optimizer.zero_grad()
-                det_error_probs, corr_logits, det_logits = self.model(input_ids, pinyin_ids)
+                det_error_probs, corr_logits, det_logits = model(input_ids, pinyin_ids)
                 det_loss = self.det_loss_act(torch.log(det_error_probs).view(-1, 2), det_labels.view(-1))
-                corr_loss = self.corr_loss_act(corr_logits.view(-1, self.vocab_size), corr_labels.view(-1)) * det_error_probs.max(dim=-1)[0].view(-1)
+                corr_loss = self.corr_loss_act(corr_logits.view(-1, self.vocab_size),
+                                               corr_labels.view(-1)) * det_error_probs.max(dim=-1)[0].view(-1)
                 loss = (det_loss + corr_loss).mean()
                 loss.backward()
                 self.optimizer.step()
@@ -149,7 +158,7 @@ class Train:
                 unprocessed = 0
                 best_f1 = f1
                 best_epoch = i + 1
-                torch.save(self.model.state_dict(), os.path.join(self.checkpoints_dir, self.model_name))
+                torch.save(model.state_dict(), os.path.join(self.checkpoints_dir, self.model_name))
                 self.logger.info('saved model successful...')
             else:
                 unprocessed += 1
@@ -168,8 +177,8 @@ class Train:
         self.logger.info('total training time consumption: %.3f(min)' % ((time.time() - very_start_time) / 60))
 
     @torch.no_grad()
-    def evaluate(self, val_loader):
-        self.model.eval()
+    def evaluate(self, model, val_loader):
+        model.eval()
         self.logger.info('start evaluate engines...')
         det_metric = DetectionF1()
         corr_metric = CorrectionF1()
@@ -179,7 +188,7 @@ class Train:
             pinyin_ids = pinyin_ids.to(self.device)
             det_labels = det_labels.to(self.device)
             corr_labels = corr_labels.to(self.device)
-            det_error_probs, corr_logits, det_logits = self.model(input_ids, pinyin_ids)
+            det_error_probs, corr_logits, det_logits = model(input_ids, pinyin_ids)
             det_metric.update(det_error_probs, det_labels, length)
             corr_metric.update(det_error_probs, det_labels, corr_logits,
                                corr_labels, length)
