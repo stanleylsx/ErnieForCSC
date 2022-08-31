@@ -83,27 +83,9 @@ class Predictor:
             batch_size=self.data_manager.batch_size,
             collate_fn=self.data_manager.prepare_data
         )
-        det_metric = DetectionF1()
-        corr_metric = CorrectionF1()
-        for step, batch in tqdm(enumerate(test_loader, start=1)):
-            input_ids, pinyin_ids, det_labels, corr_labels, length = batch
-            input_ids = input_ids.to(self.device)
-            pinyin_ids = pinyin_ids.to(self.device)
-            det_labels = det_labels.to(self.device)
-            corr_labels = corr_labels.to(self.device)
-            det_error_probs, corr_logits, det_logits = self.model(input_ids, pinyin_ids)
-            det_metric.update(det_error_probs, det_labels, length)
-            corr_metric.update(det_error_probs, det_labels, corr_logits,
-                               corr_labels, length)
-
-        det_f1, det_precision, det_recall = det_metric.accumulate()
-        corr_f1, corr_precision, corr_recall = corr_metric.accumulate()
-        self.logger.info('Sentence-Level Performance:')
-        self.logger.info('Detection  metric: F1={:.4f}, Recall={:.4f}, Precision={:.4f}'.
-                         format(det_f1, det_recall, det_precision))
-        self.logger.info('Correction metric: F1={:.4f}, Recall={:.4f}, Precision={:.4f}'.
-                         format(corr_f1, corr_recall, corr_precision))
-        return det_f1, corr_f1
+        from train import Train
+        train = Train(self.data_manager, self.device, self.logger)
+        train.evaluate(self.model, test_loader)
 
     def convert_torch_to_tf(self):
         import onnx
