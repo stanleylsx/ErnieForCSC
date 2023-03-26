@@ -88,8 +88,6 @@ class Predictor:
         train.evaluate(self.model, test_loader)
 
     def convert_torch_to_tf(self):
-        import onnx
-        from onnx_tf.backend import prepare
         max_sequence_length = self.data_manager.max_sequence_length
         dummy_input = torch.ones([1, max_sequence_length]).to('cpu').long()
         dummy_input = (dummy_input, dummy_input)
@@ -101,8 +99,4 @@ class Predictor:
                           dynamic_axes={'token_input': {0: 'batch_size'}, 'pinyin_input': {0: 'batch_size'},
                                         'detection_error_probs': {0: 'batch_size'},
                                         'correction_logits': {0: 'batch_size'}, 'detection_logits': {0: 'batch_size'}})
-        model_onnx = onnx.load(onnx_path)
-        tf_rep = prepare(model_onnx)
-        pb_path = self.checkpoints_dir + '/model.pb'
-        tf_rep.export_graph(pb_path)
-        self.logger.info('convert torch to tensorflow pb successful...')
+        self.logger.info('convert torch to onnx successful...')
